@@ -1,101 +1,109 @@
 public class Quantity_Measuement_App {
 
-    // ================= ENUM =================
+    // ===================== ENUM =====================
     enum LengthUnit {
+        FEET(12.0),
+        INCH(1.0),
+        YARD(36.0),
+        CENTIMETER(0.393701);
 
-        FEET(1.0),
-        INCHES(1.0 / 12.0),
-        YARDS(3.0),
-        CENTIMETERS(0.393701 / 12.0);
+        private final double inInches;
 
-        private final double factorToFeet;
-
-        LengthUnit(double factorToFeet) {
-            this.factorToFeet = factorToFeet;
+        LengthUnit(double inInches) {
+            this.inInches = inInches;
         }
 
-        public double toFeet(double value) {
-            return value * factorToFeet;
-        }
-
-        public double fromFeet(double valueInFeet) {
-            return valueInFeet / factorToFeet;
+        public double getFactor() {
+            return inInches;
         }
     }
 
-    // ================= VALUE OBJECT =================
+    // ===================== VALUE CLASS =====================
     static class QuantityLength {
-
         private final double value;
         private final LengthUnit unit;
 
         public QuantityLength(double value, LengthUnit unit) {
-            if (unit == null || Double.isNaN(value) || Double.isInfinite(value)) {
-                throw new IllegalArgumentException("Invalid value or unit");
+            if (!Double.isFinite(value)) {
+                throw new IllegalArgumentException("Invalid value");
+            }
+            if (unit == null) {
+                throw new IllegalArgumentException("Unit cannot be null");
             }
             this.value = value;
             this.unit = unit;
         }
 
-        private double toFeet() {
-            return unit.toFeet(value);
+        // Convert to base unit (inches)
+        private double toBase() {
+            return value * unit.getFactor();
         }
 
-        // ================= EQUALITY =================
+        // ===================== UC1 - UC4 EQUALITY =====================
         @Override
         public boolean equals(Object obj) {
             if (this == obj) return true;
-            if (!(obj instanceof QuantityLength)) return false;
+            if (obj == null || getClass() != obj.getClass()) return false;
 
-            QuantityLength other = (QuantityLength) obj;
-
-            double epsilon = 0.0001;
-            return Math.abs(this.toFeet() - other.toFeet()) < epsilon;
+            QuantityLength that = (QuantityLength) obj;
+            return Math.abs(this.toBase() - that.toBase()) < 0.0001;
         }
 
-        // ================= UC6 ADDITION =================
-        public QuantityLength add(QuantityLength other, LengthUnit resultUnit) {
+        // ===================== UC5 - CONVERSION =====================
+        public double convertTo(LengthUnit target) {
+            if (target == null) {
+                throw new IllegalArgumentException("Target unit cannot be null");
+            }
+            double base = toBase();
+            return base / target.getFactor();
+        }
 
-            if (other == null || resultUnit == null) {
-                throw new IllegalArgumentException("Null values not allowed");
+        // ===================== UC6 - ADDITION (DEFAULT UNIT) =====================
+        public QuantityLength add(QuantityLength other) {
+            return add(other, this.unit);
+        }
+
+        // ===================== UC7 - ADDITION (EXPLICIT UNIT) =====================
+        public QuantityLength add(QuantityLength other, LengthUnit target) {
+            if (other == null || target == null) {
+                throw new IllegalArgumentException("Null not allowed");
             }
 
-            double sumInFeet = this.toFeet() + other.toFeet();
+            double sumBase = this.toBase() + other.toBase();
+            double resultValue = sumBase / target.getFactor();
 
-            double resultValue = resultUnit.fromFeet(sumInFeet);
-
-            return new QuantityLength(resultValue, resultUnit);
+            return new QuantityLength(resultValue, target);
         }
 
         @Override
         public String toString() {
-            return value + " " + unit;
+            return "Quantity(" + value + ", " + unit + ")";
         }
     }
 
-    // ================= MAIN METHOD =================
+    // ===================== DEMO MAIN =====================
     public static void main(String[] args) {
 
+        // UC1 - Equality
+        System.out.println("UC1 Equality:");
+        System.out.println(new QuantityLength(1.0, LengthUnit.FEET)
+                .equals(new QuantityLength(1.0, LengthUnit.FEET)));
+
+        // UC5 - Conversion
+        System.out.println("\nUC5 Conversion:");
         QuantityLength q1 = new QuantityLength(1.0, LengthUnit.FEET);
-        QuantityLength q2 = new QuantityLength(12.0, LengthUnit.INCHES);
+        System.out.println(q1.convertTo(LengthUnit.INCH));
 
-        QuantityLength result1 = q1.add(q2, LengthUnit.FEET);
-        System.out.println("1 Feet + 12 Inches = " + result1);
+        // UC6 - Addition default unit
+        System.out.println("\nUC6 Addition:");
+        QuantityLength a = new QuantityLength(1.0, LengthUnit.FEET);
+        QuantityLength b = new QuantityLength(12.0, LengthUnit.INCH);
+        System.out.println(a.add(b));
 
-        QuantityLength q3 = new QuantityLength(1.0, LengthUnit.YARDS);
-        QuantityLength q4 = new QuantityLength(3.0, LengthUnit.FEET);
-
-        QuantityLength result2 = q3.add(q4, LengthUnit.YARDS);
-        System.out.println("1 Yard + 3 Feet = " + result2);
-
-        QuantityLength q5 = new QuantityLength(36.0, LengthUnit.INCHES);
-        QuantityLength result3 = q5.add(q3, LengthUnit.INCHES);
-        System.out.println("36 Inches + 1 Yard = " + result3);
-
-        QuantityLength q6 = new QuantityLength(5.0, LengthUnit.FEET);
-        QuantityLength q7 = new QuantityLength(-2.0, LengthUnit.FEET);
-
-        QuantityLength result4 = q6.add(q7, LengthUnit.FEET);
-        System.out.println("5 Feet + (-2 Feet) = " + result4);
+        // UC7 - Addition explicit unit
+        System.out.println("\nUC7 Addition (Target Unit):");
+        System.out.println(a.add(b, LengthUnit.YARD));
+        System.out.println(a.add(b, LengthUnit.FEET));
+        System.out.println(a.add(b, LengthUnit.INCH));
     }
 }
